@@ -1,0 +1,6 @@
+name: SpigotAuthenticator
+version: 1.0
+main: fr.galaxyoyo.spigot.authenticator.SpigotAuthenticator
+authors: [galaxyoyo]
+description: Let your players safely authenticate to your server
+website: http://galaxyoyo.fr/

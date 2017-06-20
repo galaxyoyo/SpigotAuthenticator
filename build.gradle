@@ -1,0 +1,97 @@
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'application'
+
+group = pluginGroup
+version = pluginVersion
+archivesBaseName = 'SpigotAuthenticator'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+buildscript {
+    repositories {
+        mavenCentral()
+        mavenLocal()
+    }
+    dependencies {
+        classpath 'net.sf.proguard:proguard-gradle:5.3.3'
+    }
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven {
+        name = 'spigotmc-repo'
+        url = 'https://hub.spigotmc.org/nexus/content/groups/public/'
+    }
+    maven {
+        name = 'sonatype'
+        url = 'https://oss.sonatype.org/content/groups/public/'
+    }
+}
+
+configurations {
+    included
+    compile.extendsFrom included
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile files('test/spigot-1.12.jar')
+    included 'com.warrenstrange:googleauth:1.1.1'
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Zip) { task ->
+    task.doLast {
+        ant.checksum file: it.archivePath
+    }
+}
+
+//noinspection GroovyAssignabilityCheck
+task fatjar(type: Jar) {
+    baseName = archivesBaseName
+
+    from {
+        configurations.included.collect {
+            it.isDirectory() ? it : zipTree(it).matching { exclude { it.toString().contains('META-INF') && it.toString() != "META-INF" } }
+        }
+    }
+    //noinspection GroovyAssignabilityCheck
+    with jar
+}
+
+import proguard.gradle.ProGuardTask
+
+//noinspection GroovyAssignabilityCheck
+task proguard(type: ProGuardTask) {
+    injars 'build/libs/SpigotAuthenticator-' + version + '.jar'
+    outjars 'SpigotAuthenticator.jar'
+    libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
+    configurations.compile.each { libraryjars it }
+    printmapping 'spigotauthenticator.map'
+    keepclasseswithmembers 'public class fr.galaxyoyo.spigot.authenticator.SpigotAuthenticator {*;}'
+    keepclassmembers 'public class * implements java.io.Serializable { \
+                          !static !transient <fields>; \
+                      }'
+    keepclassmembers 'enum * { \
+        public static **[] values(); \
+        public static ** valueOf(java.lang.String); \
+    }'
+    keepclassmembers 'public class * extends org.bukkit.event.Event { \
+                          org.bukkit.event.HandlerList getHandlerList();\
+                      }'
+    keep 'class com.**'
+    keep 'class org.**'
+    dontshrink()
+    dontoptimize()
+    dontwarn()
+    keepattributes '*Annotation*,Signature,SourceFile,LineNumberTable'
+}
+
+proguard.dependsOn fatjar
